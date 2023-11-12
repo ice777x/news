@@ -9,6 +9,6 @@ diesel::table! {
         author -> Nullable<Text>,
         image -> Nullable<Text>,
         content -> Nullable<Text>,
-        published -> Nullable<Text>,
+        published -> Nullable<Timestamptz>,
     }
 }

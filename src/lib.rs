@@ -4,6 +4,7 @@ pub mod routes;
 pub mod schema;
 use self::feeds::dsl::*;
 use self::models::{Feed, NewFeed};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::{prelude::*, r2d2};
@@ -38,18 +39,34 @@ impl Database {
     }
 
     pub fn select_feed_by_id(&mut self, id_key: i32, limit: u32) -> Vec<Feed> {
-        feeds
+        let feed = feeds
             .filter(id.eq(id_key))
             .limit(limit.into())
             .select(Feed::as_select())
-            .load(&mut self.pool.get().unwrap())
-            .expect("Cannot get feed")
+            .load(&mut self.pool.get().unwrap());
+        match feed {
+            Ok(feed) => feed,
+            Err(_) => {
+                println!("Cannot find any feed for {}", id_key);
+                vec![]
+            }
+        }
     }
-
     pub fn create_feed_many(&mut self, feed_vec: Vec<RssFeed>) -> Option<Vec<Feed>> {
-        let mut many: Vec<NewFeed> = vec![];
+        let all_feed = self.get_all_feeds(9999999);
+
+        let mut new_feeds: Vec<NewFeed> = vec![];
+
         for feed in feed_vec.iter() {
             if feed.title == String::new() {
+                continue;
+            }
+
+            if all_feed
+                .iter()
+                .find(move |p| p.link.as_deref().unwrap() == feed.link)
+                .is_some()
+            {
                 continue;
             }
             let new_post = NewFeed {
@@ -59,65 +76,38 @@ impl Database {
                 content: feed.content(),
                 author: Some(feed.author.to_string()),
                 image: feed.clone().images,
-                published: feed.clone().published,
+                published: match feed.clone().published {
+                    Some(date) => Some(RssFeed::to_date(&date)),
+                    None => None,
+                },
             };
-            many.push(new_post);
+            new_feeds.push(new_post);
         }
-        if many.len() == 0 {
+        if new_feeds.len() == 0 {
             return None;
         }
-        let len = &many.len() / 8;
+        let feeds_len = &new_feeds.len() / 8;
         for _ in 0..8 {
-            if len > many.len() {
+            if feeds_len > new_feeds.len() {
                 println!("Last Ones");
                 let _ = diesel::insert_into(feeds::table)
-                    .values(&many)
+                    .values(&new_feeds)
                     .execute(&mut self.pool.get().unwrap());
-            } else if many.len() == 0 {
-                println!("Empty");
+            } else if new_feeds.len() == 0 {
                 return Some(vec![]);
             } else {
-                let many2 = many.split_off(len);
-                println!("Created");
+                let splitted_new_feed = new_feeds.split_off(feeds_len);
                 let _ = diesel::insert_into(feeds::table)
-                    .values(&many)
+                    .values(&new_feeds)
                     .execute(&mut self.pool.get().unwrap());
-                many = many2.clone();
+                new_feeds = splitted_new_feed;
             }
         }
         Some(vec![])
     }
-    pub fn create_feed(&mut self, feed: RssFeed) -> Option<Vec<Feed>> {
-        let f = feed.clone();
-        let new_post = NewFeed {
-            title: feed.title,
-            link: Some(feed.link.clone()),
-            description: f.description(),
-            content: f.content(),
-            author: Some(feed.author),
-            image: feed.images,
-            published: feed.published,
-        };
-        let s_f: Option<Feed> = feeds
-            .filter(feeds::link.eq(new_post.link.clone().unwrap().as_str()))
-            .select(Feed::as_select())
-            .get_result(&mut self.pool.get().unwrap())
-            .ok();
-        match s_f {
-            Some(_) => {
-                println!("Feed already created");
-                None
-            }
-            None => diesel::insert_into(feeds::table)
-                .values(&new_post)
-                .returning(Feed::as_returning())
-                .load(&mut self.pool.get().unwrap())
-                .ok(),
-        }
-    }
 
     pub fn get_feeds_by_query(&mut self, query: String, limit: u32) -> Vec<Feed> {
-        let q_feeds = feeds
+        let res = feeds
             .filter(
                 feeds::title
                     .ilike(format!("%{}%", query))
@@ -126,19 +116,29 @@ impl Database {
             .select(Feed::as_select())
             .limit(limit.into())
             .order(feeds::id.desc())
-            .get_results(&mut self.pool.get().unwrap())
-            .expect("Error query");
-        q_feeds
+            .get_results(&mut self.pool.get().unwrap());
+        match res {
+            Ok(res) => res,
+            Err(_) => {
+                println!("Error to fetch feeds.");
+                vec![]
+            }
+        }
     }
 
     pub fn get_all_feeds(&mut self, limit: u32) -> Vec<Feed> {
-        let all_feed = feeds
+        let all_feeds = feeds
             .select(Feed::as_select())
             .limit(limit.into())
-            .order(feeds::id.desc())
-            .get_results(&mut self.pool.get().unwrap())
-            .expect("Unexpected error");
-        all_feed
+            .order(feeds::published.desc().nulls_last())
+            .get_results(&mut self.pool.get().unwrap());
+        match all_feeds {
+            Ok(res) => res,
+            Err(_) => {
+                println!("Error to fetch feeds.");
+                vec![]
+            }
+        }
     }
 }
 
@@ -161,6 +161,19 @@ pub struct RssFeed {
 }
 
 impl RssFeed {
+    fn to_date(date: &str) -> NaiveDateTime {
+        let new_date = NaiveDateTime::parse_and_remainder(date, "%Y-%m-%d %H:%M:%S").ok();
+        // let tz = FixedOffset::east_opt(3 * 3600).unwrap();
+        match new_date {
+            Some((date, _)) => date,
+            None => {
+                NaiveDateTime::parse_and_remainder(date, "%a, %d %b %Y %H:%M:%S %z")
+                    .unwrap()
+                    .0
+            }
+        }
+    }
+
     #[allow(dead_code)]
     fn image_from_source(&self) -> String {
         let re = Regex::new(r#"src="(?<link>.+)""#).unwrap();
@@ -194,6 +207,7 @@ impl RssFeed {
             Some(desc) => Some(
                 re.replace_all(&desc, "")
                     .to_string()
+                    .replace("&#039;", "'")
                     .replace("&#8216;", "'")
                     .replace("&#8217;", "'")
                     .replace("&#46;", ".")
@@ -213,6 +227,7 @@ impl RssFeed {
             Some(cont) => Some(
                 re.replace_all(&cont, "")
                     .to_string()
+                    .replace("&#039;", "'")
                     .replace("&#8216;", "'")
                     .replace("&#8217;", "'")
                     .replace("&#46;", ".")

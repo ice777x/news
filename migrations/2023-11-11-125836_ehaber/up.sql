@@ -6,5 +6,5 @@ CREATE TABLE feeds (
     author TEXT,
     image TEXT,
     content TEXT,
-    published TEXT
+    published TIMESTAMP(6) WITH TIME ZONE
 )

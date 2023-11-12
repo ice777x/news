@@ -1,4 +1,5 @@
 use crate::schema::feeds;
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ pub struct Feed {
     pub author: Option<String>,
     pub image: Option<String>,
     pub content: Option<String>,
-    pub published: Option<String>,
+    pub published: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Insertable, Clone)]
@@ -25,5 +26,5 @@ pub struct NewFeed {
     pub author: Option<String>,
     pub image: Option<String>,
     pub content: Option<String>,
-    pub published: Option<String>,
+    pub published: Option<NaiveDateTime>,
 }

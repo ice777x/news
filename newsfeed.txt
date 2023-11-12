@@ -12,15 +12,9 @@ http://www.acikgazete.com/feed/
 http://www.aygazete.com/rss/gundem-haberleri
 http://feeds.bbci.co.uk/turkce/rss.xml
 http://www.ensonhaber.com/rss/ensonhaber.xml
-https://www.mynet.com/magazin/rss
-http://spor.mynet.com/rss
-http://www.mynet.com/haber/rss/sondakika
-http://www.mynet.com/haber/rss/gununozeti/
 http://www.turkiyehaberajansi.com/rss.xml
 http://www.internethaber.com/rss
-http://www.finansgundem.com/rss
 https://www.tobb.org.tr/Sayfalar/RssFeeder.php?List=Haberler
-http://bigpara.hurriyet.com.tr/rss/
 http://www.cumhuriyet.com.tr/rss/son_dakika.xml
 https://www.dunya.com/rss?dunya
 https://t24.com.tr/rss
@@ -38,3 +32,9 @@ https://www.cthaber.com/rss.xml
 http://rss.cnn.com/rss/edition.rss
 https://www.telegraph.co.uk/rss.xml
 https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+https://tr.investing.com/rss/news_25.rss
+https://www.gazeteduvar.com.tr/export/rss
+https://www.birgun.net/rss/home
+https://tr.euronews.com/rss?format=mrss&level=vertical&name=my-europe
+https://tr.euronews.com/rss?format=mrss&level=theme&name=news
+https://europeantimes.news/feed/
