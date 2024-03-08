@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::models::Feed;
 use crate::parser::get_all_rss;
-use crate::Database;
+use crate::structs::Database;
 use axum::extract::{Json, Query, State};
 use serde::{Deserialize, Serialize};
 

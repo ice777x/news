@@ -2,7 +2,7 @@ use axum::{routing::get, Router};
 use clokwerk::{AsyncScheduler, TimeUnits};
 use news::{
     routes::{create_feed, get_feed, root},
-    Database,
+    structs::Database,
 };
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
